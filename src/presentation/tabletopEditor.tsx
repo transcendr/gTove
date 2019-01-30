@@ -1,162 +1,262 @@
-import * as React from 'react';
-import * as PropTypes from 'prop-types';
-import Select from 'react-select';
-import {connect, Dispatch} from 'react-redux';
+import * as React from "react"
+import * as PropTypes from "prop-types"
+import Select from "react-select"
+import { connect, Dispatch } from "react-redux"
 
-import RenameFileEditor, {RenameFileEditorProps} from './renameFileEditor';
-import {FileAPIContext} from '../util/fileUtils';
-import {DistanceMode, DistanceRound, ScenarioType, jsonToScenarioAndTabletop, TabletopType} from '../util/scenarioUtils';
-import {DriveMetadata} from '../util/googleDriveUtils';
-import {getAllFilesFromStore, getTabletopIdFromStore, ReduxStoreType} from '../redux/mainReducer';
-import {updateTabletopAction} from '../redux/tabletopReducer';
-import InputField from './inputField';
-import {FileIndexReducerType} from '../redux/fileIndexReducer';
-import {CommsStyle} from '../util/commsNode';
+import RenameFileEditor, { RenameFileEditorProps } from "./renameFileEditor"
+import { FileAPIContext } from "../util/fileUtils"
+import {
+  DistanceMode,
+  DistanceRound,
+  ScenarioType,
+  jsonToScenarioAndTabletop,
+  TabletopType
+} from "../util/scenarioUtils"
+import { DriveMetadata } from "../util/googleDriveUtils"
+import {
+  getAllFilesFromStore,
+  getTabletopIdFromStore,
+  ReduxStoreType
+} from "../redux/mainReducer"
+import { updateTabletopAction } from "../redux/tabletopReducer"
+import InputField from "./inputField"
+import { FileIndexReducerType } from "../redux/fileIndexReducer"
+import { CommsStyle } from "../util/commsNode"
+import InputButton from "./inputButton"
 
-import 'react-select/dist/react-select.css';
-import './tabletopEditor.css';
+import "react-select/dist/react-select.css"
+import "./tabletopEditor.css"
 
 interface TabletopEditorProps extends RenameFileEditorProps {
-    files: FileIndexReducerType;
-    dispatch: Dispatch<ReduxStoreType>;
-    tabletopId: string;
+  files: FileIndexReducerType
+  dispatch: Dispatch<ReduxStoreType>
+  tabletopId: string
 }
 
 interface TabletopEditorState {
-    tabletop: TabletopType | null;
+  tabletop: TabletopType | null
 }
 
-class TabletopEditor extends React.Component<TabletopEditorProps, TabletopEditorState> {
+class TabletopEditor extends React.Component<
+  TabletopEditorProps,
+  TabletopEditorState
+> {
+  static contextTypes = {
+    fileAPI: PropTypes.object
+  }
 
-    static contextTypes = {
-        fileAPI: PropTypes.object
-    };
+  static distanceModeStrings = {
+    [DistanceMode.STRAIGHT]: "along a straight line",
+    [DistanceMode.GRID_DIAGONAL_ONE_ONE]:
+      "following the grid, diagonals cost one square",
+    [DistanceMode.GRID_DIAGONAL_THREE_EVERY_TWO]:
+      "following the grid, diagonals cost three squares every two"
+  }
 
-    static distanceModeStrings = {
-        [DistanceMode.STRAIGHT]: 'along a straight line',
-        [DistanceMode.GRID_DIAGONAL_ONE_ONE]: 'following the grid, diagonals cost one square',
-        [DistanceMode.GRID_DIAGONAL_THREE_EVERY_TWO]: 'following the grid, diagonals cost three squares every two'
-    };
+  static distanceRoundStrings = {
+    [DistanceRound.ROUND_OFF]: "rounded off",
+    [DistanceRound.ROUND_UP]: "rounded up",
+    [DistanceRound.ROUND_DOWN]: "rounded down",
+    [DistanceRound.ONE_DECIMAL]: "shown to one decimal place"
+  }
 
-    static distanceRoundStrings = {
-        [DistanceRound.ROUND_OFF]: 'rounded off',
-        [DistanceRound.ROUND_UP]: 'rounded up',
-        [DistanceRound.ROUND_DOWN]: 'rounded down',
-        [DistanceRound.ONE_DECIMAL]: 'shown to one decimal place'
-    };
+  static commsStyleStrings = {
+    [CommsStyle.PeerToPeer]: "Peer-to-peer",
+    [CommsStyle.MultiCast]: "Multicast (experimental)"
+  }
 
-    static commsStyleStrings = {
-        [CommsStyle.PeerToPeer]: 'Peer-to-peer',
-        [CommsStyle.MultiCast]: 'Multicast (experimental)'
-    };
+  context: FileAPIContext
 
-    context: FileAPIContext;
-
-    constructor(props: TabletopEditorProps) {
-        super(props);
-        this.onSave = this.onSave.bind(this);
-        this.state = {
-            tabletop: null
-        };
+  constructor(props: TabletopEditorProps) {
+    super(props)
+    this.onSave = this.onSave.bind(this)
+    this.state = {
+      tabletop: null
     }
+  }
 
-    componentDidMount() {
-        this.context.fileAPI.getJsonFileContents(this.props.metadata)
-            .then((combined: ScenarioType & TabletopType) => {
-                const [, tabletop] = jsonToScenarioAndTabletop(combined, this.props.files.driveMetadata);
-                this.setState({tabletop});
-            });
-    }
+  componentDidMount() {
+    this.context.fileAPI
+      .getJsonFileContents(this.props.metadata)
+      .then((combined: ScenarioType & TabletopType) => {
+        const [, tabletop] = jsonToScenarioAndTabletop(
+          combined,
+          this.props.files.driveMetadata
+        )
+        this.setState({ tabletop })
+      })
+  }
 
-    onSave(gmFileMetadata: DriveMetadata): Promise<any> {
-        if (this.state.tabletop && this.props.metadata.id === this.props.tabletopId) {
-            // If current, can just dispatch Redux actions to update the tabletop live.
-            this.props.dispatch(updateTabletopAction(this.state.tabletop));
-            return Promise.resolve();
-        } else {
-            // Otherwise, merge changes with public and private tabletop files.
-            return this.context.fileAPI.getJsonFileContents(this.props.metadata)
-                .then((combined) => (
-                    this.context.fileAPI.saveJsonToFile(this.props.metadata.id, {...combined, ...this.state.tabletop, gmSecret: undefined})
-                ))
-                .then(() => (this.context.fileAPI.getJsonFileContents(gmFileMetadata)))
-                .then((combined) => (
-                    this.context.fileAPI.saveJsonToFile(gmFileMetadata.id, {...combined, ...this.state.tabletop})
-                ));
-        }
+  onSave(gmFileMetadata: DriveMetadata): Promise<any> {
+    if (
+      this.state.tabletop &&
+      this.props.metadata.id === this.props.tabletopId
+    ) {
+      // If current, can just dispatch Redux actions to update the tabletop live.
+      this.props.dispatch(updateTabletopAction(this.state.tabletop))
+      return Promise.resolve()
+    } else {
+      // Otherwise, merge changes with public and private tabletop files.
+      return this.context.fileAPI
+        .getJsonFileContents(this.props.metadata)
+        .then(combined =>
+          this.context.fileAPI.saveJsonToFile(this.props.metadata.id, {
+            ...combined,
+            ...this.state.tabletop,
+            gmSecret: undefined
+          })
+        )
+        .then(() => this.context.fileAPI.getJsonFileContents(gmFileMetadata))
+        .then(combined =>
+          this.context.fileAPI.saveJsonToFile(gmFileMetadata.id, {
+            ...combined,
+            ...this.state.tabletop
+          })
+        )
     }
+  }
 
-    renderSelect<E>(enumObject: E, labels: {[key in keyof E]: string}, field: string, defaultValue: keyof E) {
-        return (
-            <Select
-                options={Object.keys(enumObject).map((key) => ({label: labels[key], value: enumObject[key]}))}
-                value={this.state.tabletop![field] || defaultValue}
-                clearable={false}
-                onChange={(selection) => {
-                    if (selection && !Array.isArray(selection) && selection.value) {
-                        this.setState((state) => ({tabletop: {...state.tabletop!, [field]: selection.value}}));
-                    }
-                }}
-            />
-        );
-    }
+  renderSelect<E>(
+    enumObject: E,
+    labels: { [key in keyof E]: string },
+    field: string,
+    defaultValue: keyof E
+  ) {
+    return (
+      <Select
+        options={Object.keys(enumObject).map(key => ({
+          label: labels[key],
+          value: enumObject[key]
+        }))}
+        value={this.state.tabletop![field] || defaultValue}
+        clearable={false}
+        onChange={selection => {
+          if (selection && !Array.isArray(selection) && selection.value) {
+            this.setState(state => ({
+              tabletop: { ...state.tabletop!, [field]: selection.value }
+            }))
+          }
+        }}
+      />
+    )
+  }
 
-    render() {
-        return (
-            <RenameFileEditor
-                className='tabletopEditor'
-                metadata={this.props.metadata}
-                onClose={this.props.onClose}
-                getSaveMetadata={() => ({})}
-                onSave={this.onSave}
-            >
-                {
-                    !this.state.tabletop ? (
-                        <span>Loading...</span>
-                    ) : (
-                        <div>
-                            <fieldset>
-                                <legend>Tabletop grid distances</legend>
-                                <div className='gridScaleDiv'>
-                                    <label>One grid square is</label>
-                                    <InputField type='number' initialValue={this.state.tabletop.gridScale || ''} onChange={(value) => {
-                                        this.setState({tabletop: {...this.state.tabletop!, gridScale: Number(value) || undefined}});
-                                    }}
-                                    />
-                                    <InputField type='text' initialValue={this.state.tabletop.gridUnit || ''} onChange={(value) => {
-                                        this.setState({tabletop: {...this.state.tabletop!, gridUnit: String(value) || undefined}});
-                                    }} placeholder='Units e.g. foot/feet, meter/meters'
-                                    />
-                                </div>
-                                <div className='gridDiagonalDiv'>
-                                    <label>Measure distance</label>
-                                    {this.renderSelect(DistanceMode, TabletopEditor.distanceModeStrings, 'distanceMode', DistanceMode.STRAIGHT)}
-                                </div>
-                                <div className='gridRoundDiv'>
-                                    <label>Distances are</label>
-                                    {this.renderSelect(DistanceRound, TabletopEditor.distanceRoundStrings, 'distanceRound', DistanceRound.ROUND_OFF)}
-                                </div>
-                            </fieldset>
-                            <fieldset>
-                                <legend>Communication</legend>
-                                <div className='commsStyleDiv'>
-                                    <label>Client connections</label>
-                                    {this.renderSelect(CommsStyle, TabletopEditor.commsStyleStrings, 'commsStyle', CommsStyle.PeerToPeer)}
-                                </div>
-                            </fieldset>
-                        </div>
-                    )
-                }
-            </RenameFileEditor>
-        );
-    }
+  render() {
+    return (
+      <RenameFileEditor
+        className="tabletopEditor"
+        metadata={this.props.metadata}
+        onClose={this.props.onClose}
+        getSaveMetadata={() => ({})}
+        onSave={this.onSave}
+      >
+        {!this.state.tabletop ? (
+          <span>Loading...</span>
+        ) : (
+          <div>
+            <fieldset>
+              <legend>Tabletop grid distances</legend>
+              <div className="gridScaleDiv">
+                <label>One grid square is</label>
+                <InputField
+                  type="number"
+                  initialValue={this.state.tabletop.gridScale || ""}
+                  onChange={value => {
+                    this.setState({
+                      tabletop: {
+                        ...this.state.tabletop!,
+                        gridScale: Number(value) || undefined
+                      }
+                    })
+                  }}
+                />
+                <InputField
+                  type="text"
+                  initialValue={this.state.tabletop.gridUnit || ""}
+                  onChange={value => {
+                    this.setState({
+                      tabletop: {
+                        ...this.state.tabletop!,
+                        gridUnit: String(value) || undefined
+                      }
+                    })
+                  }}
+                  placeholder="Units e.g. foot/feet, meter/meters"
+                />
+              </div>
+              <div className="gridDiagonalDiv">
+                <label>Measure distance</label>
+                {this.renderSelect(
+                  DistanceMode,
+                  TabletopEditor.distanceModeStrings,
+                  "distanceMode",
+                  DistanceMode.STRAIGHT
+                )}
+              </div>
+              <div className="gridRoundDiv">
+                <label>Distances are</label>
+                {this.renderSelect(
+                  DistanceRound,
+                  TabletopEditor.distanceRoundStrings,
+                  "distanceRound",
+                  DistanceRound.ROUND_OFF
+                )}
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Communication</legend>
+              <div className="commsStyleDiv">
+                <label>Client connections</label>
+                {this.renderSelect(
+                  CommsStyle,
+                  TabletopEditor.commsStyleStrings,
+                  "commsStyle",
+                  CommsStyle.PeerToPeer
+                )}
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Firebase Settings</legend>
+              <div className="commsStyleDiv">
+                <span>
+                  Firebase integration will be{" "}
+                  {this.state.tabletop!.firebase.enabled
+                    ? "enabled."
+                    : "disabled."}
+                </span>
+                <InputButton
+                  selected={this.state.tabletop.firebase.enabled}
+                  onChange={() => {
+                    this.setState({
+                      tabletop: {
+                        ...this.state.tabletop!,
+                        firebase: {
+                          ...this.state.tabletop!.firebase,
+                          enabled: !this.state.tabletop!.firebase.enabled
+                        }
+                      }
+                    })
+                  }}
+                  text={
+                    (this.state.tabletop!.firebase.enabled
+                      ? "Disable"
+                      : "Enable") + " Firebase"
+                  }
+                />
+              </div>
+            </fieldset>
+          </div>
+        )}
+      </RenameFileEditor>
+    )
+  }
 }
 
 function mapStoreToProps(store: ReduxStoreType) {
-    return {
-        tabletopId: getTabletopIdFromStore(store),
-        files: getAllFilesFromStore(store)
-    };
+  return {
+    tabletopId: getTabletopIdFromStore(store),
+    files: getAllFilesFromStore(store)
+  }
 }
 
-export default connect(mapStoreToProps)(TabletopEditor);
+export default connect(mapStoreToProps)(TabletopEditor)
