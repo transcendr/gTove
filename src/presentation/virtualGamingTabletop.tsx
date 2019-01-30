@@ -184,7 +184,10 @@ class VirtualGamingTabletop extends React.Component<VirtualGamingTabletopProps, 
             gmSecret: '',
             distanceMode: DistanceMode.STRAIGHT,
             distanceRound: DistanceRound.ROUND_OFF,
-            commsStyle: CommsStyle.PeerToPeer
+            commsStyle: CommsStyle.PeerToPeer,
+            firebase: {
+                enabled: false
+            }
         };
     }
 
@@ -367,7 +370,7 @@ class VirtualGamingTabletop extends React.Component<VirtualGamingTabletopProps, 
         if (this.props.loggedInUser && this.props.tabletop.gm === this.props.loggedInUser.emailAddress && metadataId && driveMetadata && driveMetadata.appProperties) {
             const [privateScenario, publicScenario] = scenarioToJson(scenarioState, publicActionId);
             return this.context.fileAPI.saveJsonToFile(metadataId, {...publicScenario, ...this.props.tabletop, gmSecret: undefined})
-                .then(() => (this.context.fileAPI.saveJsonToFile(driveMetadata.appProperties.gmFile, {...privateScenario, ...this.props.tabletop})))
+            .then(() => (this.context.fileAPI.saveJsonToFile(driveMetadata.appProperties.gmFile, {...privateScenario, ...this.props.tabletop})))
                 .catch((err: Error) => {
                     if (this.props.loggedInUser) {
                         throw err;
