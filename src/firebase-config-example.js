@@ -6,24 +6,13 @@
 //Near bottom of above page, click "Add Firebase to webapp" 
 //for required information.
 
-// const fbConfig = {
-//   apiKey: "",
-//   authDomain: "",
-//   databaseURL: "",
-//   projectId: "",
-//   storageBucket: "",
-//   messagingSenderId: ""
-// };
-
-// export default fbConfig;
-
-var fbConfig = {
-  apiKey: "AIzaSyDy-Yo_zDWl2SU7o1RqviKpaAUlURDWh2U",
-  authDomain: "gtove2.firebaseapp.com",
-  databaseURL: "https://gtove2.firebaseio.com",
-  projectId: "gtove2",
-  storageBucket: "gtove2.appspot.com",
-  messagingSenderId: "828285745103"
+const fbConfig = {
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: ""
 };
 
 export default fbConfig;
